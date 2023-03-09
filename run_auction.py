@@ -55,7 +55,7 @@ if __name__ == '__main__':
     for module in modules:
         importlib.reload(__import__(module))
 
-    single = False
+    single = True
     if single:
         auction = run_auction()
         auction.plot_history(legend=False)

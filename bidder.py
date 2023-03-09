@@ -179,9 +179,9 @@ class AddaptiveBidder(Bidder):
     def __init__(self, num_users, num_rounds, id):
         super().__init__(num_users, num_rounds, id)
         self._expected = 0.5 # The expected value with no other information.
-        self._blend_rate = random.randint(20, 50)
-        self._factor = random.uniform(0.9, 1.15)
-        self._back = random.randint(1, 30)
+        self._blend_rate = 30
+        self._factor = random.uniform(1.05, 1.15)
+        self._back = 31
         self._threshold = random.uniform(0.2, 0.8)
         self._name = f'AddaptiveBidder ({self._blend_rate}, {self._back}, {self._threshold})'
 
@@ -198,11 +198,11 @@ class AddaptiveBidder(Bidder):
         """Start with the default expected value and update it over time with past information."""
         wins = user_history.wins
         expected = self._expected
-        if self.balance < -10:
-            self._factor = random.uniform(0.9, 1.1)
         back = self._win_history[-self._back:]
         if len(back) > 0 and sum(back) / len(back) < self._threshold:
-            self._factor = min(1.1, self._factor * random.uniform(1, 1.02))
+            self._factor = min(1.1, self._factor * random.uniform(1, 1.01))
+        if len(back) == self._back:
+            self._factor = 1
 
         factor = self._factor
         if wins == 0:
