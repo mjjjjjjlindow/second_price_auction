@@ -3,7 +3,7 @@ import os
 import random
 import pandas as pd
 from auction import User, Auction
-from bidder import getBidders, AddaptiveBidder
+from bidder import getBidders
 
 
 
@@ -34,33 +34,44 @@ def run_auctions(n):
 def get_auction_data(i, auction):
     """Format the results of the simulation to a pandas DataFrame."""
     winner = auction.winner
-    n = None
-    f = None
-    isAddaptive = isinstance(winner, AddaptiveBidder)
-    if isAddaptive:
-        n = winner.wait
-        f = winner.factor
-    return  {
+    params = winner.params
+    data = {
         'auction': i,
         'rounds': auction.rounds,
         'users': len(auction.users),
         'bidders': len(auction.bidders),
-        'is_addaptive': isAddaptive,
-        'wait': n,
-        'factor': f,
         'clicks': winner.clicks,
         'wins': winner.wins,
         'balance': winner.balance,
         'attempts': winner.attempts,
     }
+    data.update(params)
+    return data
 
 if __name__ == '__main__':
-    # auction = run_auction()
-    # auction.plot_history(legend=False)
-    # auction.display_bidders()
-    # auction.display_summary()
+    # Reload poject modules to 'hot-reload' while using vscode interactive terminal.
+    import importlib
+    modules = ['auction', 'bidder']
+    for module in modules:
+        importlib.reload(__import__(module))
 
-    df = run_auctions(50)
-    curr_dir = os.path.dirname(__file__)
-    filepath = os.path.join(curr_dir, 'data.pickle')
-    df.to_pickle(filepath)
+    single = False
+    if single:
+        auction = run_auction()
+        auction.plot_history(legend=False)
+        auction.display_bidders()
+        auction.display_summary()
+    else:
+        df = run_auctions(50)
+        try:
+            curr_dir = os.path.dirname(__file__)
+        except:
+            # Executing in the iPython terminal.
+            curr_dir = os.getcwd()
+        filepath = os.path.join(curr_dir, 'data.pickle')
+        if os.path.exists(filepath):
+            data = pd.read_pickle(filepath)
+            data = pd.concat([data, df])
+            data.to_pickle(filepath)
+        else:
+            df.to_pickle(filepath)

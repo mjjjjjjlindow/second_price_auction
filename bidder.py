@@ -14,6 +14,8 @@ class Bidder:
         self._current_user = None
         self._history = {}
 
+        self._win_history = []
+
         self.fixed = random.random()
 
         self._attempts = 0 # The number of non-zero bids.
@@ -41,6 +43,10 @@ class Bidder:
     @property
     def clicks(self):
         return self._clicks
+    
+    @property
+    def params(self):
+        return {}
 
     def bid(self, user_id):
         """"""
@@ -156,73 +162,51 @@ class Bidder:
         """"""
         self._current_user.notify(auction_winner, price, clicked)
         if auction_winner == True:
+            self._win_history.append(1)
             self.balance -= price
             self._wins += 1
             self._spend += price
             if clicked == True:
                 self.balance += 1
                 self._clicks += 1
+        else:
+            self._win_history.append(0)
         self.balance_history.append(self.balance)
 
-
-class LateBidder(Bidder):
-
-    def __init__(self, num_users, num_rounds, id):
-        super().__init__(num_users, num_rounds, id)
-        self.__wait = random.randint(2, 10)
-        self.__use_n = random.randint(1, 10)
-        self.__factor = random.uniform(1, 1.5)
-        self._name = f'Late ({self.__wait}, {self.__use_n}, {self.__factor:.2f})'
-
-    def _bid(self, user_history):
-        """Wait until a customer has show up x number of times then start bidding."""
-        if user_history.rounds < self.__wait:
-            return 0
-        bid = user_history.nAvg(self.__use_n) * self.__factor
-        return bid
-    
-
-class DataCollectorBidder(Bidder):
-
-    def __init__(self, num_users, num_rounds, id):
-        super().__init__(num_users, num_rounds, id)
-        self._wait = random.randint(5, 20) # The number or rounds before using the market rate.
-        self._factor = random.uniform(1.01, 1.5) # The factor to increase above market rate.
-        self._default = random.uniform(0.5, 1) # The default bid to use.
-        self._name = f'Data Collector ({self._wait}, {self._factor}, {self._default})'
-
-    def _bid(self, user_history):
-        """"""
-        rounds = user_history.rounds
-        max_rate = user_history.max_rate
-        if rounds < self._wait:
-            return max_rate * self._factor
-        return self._default
-    
+   
 class AddaptiveBidder(Bidder):
 
     def __init__(self, num_users, num_rounds, id):
         super().__init__(num_users, num_rounds, id)
         self._expected = 0.5 # The expected value with no other information.
-        self._blend_rate = random.randint(1, 50)
-        self._factor = random.uniform(0.5, 2.0)
-        self._name = f'AddaptiveBidder ({self._blend_rate}, {self._expected}, {self._factor})'
+        self._blend_rate = random.randint(20, 50)
+        self._factor = random.uniform(0.9, 1.15)
+        self._back = random.randint(1, 30)
+        self._threshold = random.uniform(0.2, 0.8)
+        self._name = f'AddaptiveBidder ({self._blend_rate}, {self._back}, {self._threshold})'
 
     @property
-    def wait(self):
-        return self._blend_rate
-    
-    @property
-    def factor(self):
-        return self._factor
+    def params(self):
+        return {
+            'name': 'Addaptive',
+            'blend_rate': self._blend_rate,
+            'lookback': self._back,
+            'threshold': self._threshold,
+        }
 
     def _bid(self, user_history):
         """Start with the default expected value and update it over time with past information."""
         wins = user_history.wins
         expected = self._expected
+        if self.balance < -10:
+            self._factor = random.uniform(0.9, 1.1)
+        back = self._win_history[-self._back:]
+        if len(back) > 0 and sum(back) / len(back) < self._threshold:
+            self._factor = min(1.1, self._factor * random.uniform(1, 1.02))
+
         factor = self._factor
         if wins == 0:
-            return expected * factor
+            return  expected * factor
         win_rate = user_history.win_rate
         n = self._blend_rate
         if wins < n:
@@ -234,7 +218,7 @@ class AddaptiveBidder(Bidder):
 def getBidders(n_users, n_rounds, n):
     """Return a list of n randomly selected bidders."""
     options = [Bidder, AddaptiveBidder]
-    weights = [0.1, 0.9]
+    weights = [1, 100]
     bidders = []
     for i in range(n):
         bidder = random.choices(options, weights)[0]
