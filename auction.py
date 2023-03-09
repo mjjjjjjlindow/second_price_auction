@@ -55,7 +55,7 @@ class Auction:
         print('Users:', len(self.users))
         print('Bidders:', len(self.bidders))
         print('Rounds:', self.rounds)
-        print('Rounds/User:', self.rounds / self.users)
+        print('Rounds/User:', self.rounds / len(self.users))
         print()
 
     def display_bidders(self):
@@ -75,6 +75,11 @@ class Auction:
             print(f'{i:4d}   {balance:10.2f}      {attempts:5d}   {ratio:>12}       {v:>6}   {bidder}')
         print('---------------------------------------------------------')
         print()
+
+    @property
+    def winner(self):
+        self.bidders.sort(key=lambda x: x.balance, reverse=True)
+        return self.bidders[1]
 
 
 class User:

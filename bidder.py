@@ -78,7 +78,13 @@ class Bidder:
             @property
             def clicks(self):
                 return self._n_clicks
-
+            
+            @property
+            def win_rate(self):
+                if self.wins == 0:
+                    return None
+                return self.clicks / self.wins
+            
             @property
             def click_rate(self):
                 """The observed click-rate based on win observations."""
@@ -192,11 +198,45 @@ class DataCollectorBidder(Bidder):
         if rounds < self._wait:
             return max_rate * self._factor
         return self._default
+    
+class AddaptiveBidder(Bidder):
+
+    def __init__(self, num_users, num_rounds, id):
+        super().__init__(num_users, num_rounds, id)
+        self._expected = 0.5 # The expected value with no other information.
+        self._blend_rate = random.randint(1, 50)
+        self._factor = random.uniform(0.5, 2.0)
+        self._name = f'AddaptiveBidder ({self._blend_rate}, {self._expected}, {self._factor})'
+
+    @property
+    def wait(self):
+        return self._blend_rate
+    
+    @property
+    def factor(self):
+        return self._factor
+
+    def _bid(self, user_history):
+        """Start with the default expected value and update it over time with past information."""
+        wins = user_history.wins
+        expected = self._expected
+        factor = self._factor
+        if wins == 0:
+            return expected * factor
+        win_rate = user_history.win_rate
+        n = self._blend_rate
+        if wins < n:
+            t = wins / n
+            return (t * win_rate + expected * (1 - t)) * factor # Blend between rates.
+        else:
+            return win_rate * factor
 
 def getBidders(n_users, n_rounds, n):
     """Return a list of n randomly selected bidders."""
-    options = [Bidder, LateBidder, DataCollectorBidder]
+    options = [Bidder, AddaptiveBidder]
+    weights = [0.1, 0.9]
     bidders = []
     for i in range(n):
-        bidders.append(random.choice(options)(n_users, n_rounds, i))
+        bidder = random.choices(options, weights)[0]
+        bidders.append(bidder(n_users, n_rounds, i))
     return bidders
